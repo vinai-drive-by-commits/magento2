@@ -80,6 +80,11 @@ class RepositorySourceFactory
             {
                 return $this->repo->{$this->method}($searchCriteria);
             }
+
+            public function getInstance()
+            {
+                return $this->repo;
+            }
         };
     }
 

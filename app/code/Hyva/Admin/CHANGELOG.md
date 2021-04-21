@@ -5,10 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### Added
+- New grid column type website_id.
+
+### Changed
+- Allow `as=""` attribute for query grid source join columns
+
+### Removed
+- No removals.
+
+## [1.1.8] - 2021-04-17
+### Added
 - Nothing currently.
 
 ### Changed
-- Nothing currently.
+- Bugfix: grids without filters throw an error that action is undefined on null.
 
 ### Removed
 - No removals.

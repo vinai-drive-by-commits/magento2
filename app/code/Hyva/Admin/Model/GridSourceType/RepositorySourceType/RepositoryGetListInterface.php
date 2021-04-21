@@ -8,4 +8,6 @@ use Magento\Framework\Api\SearchResultsInterface;
 interface RepositoryGetListInterface
 {
     public function __invoke(SearchCriteriaInterface $searchCriteria): SearchResultsInterface;
+
+    public function getInstance();
 }
