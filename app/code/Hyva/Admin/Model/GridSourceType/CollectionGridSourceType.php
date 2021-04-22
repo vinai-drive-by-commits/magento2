@@ -2,13 +2,15 @@
 
 namespace Hyva\Admin\Model\GridSourceType;
 
-use Hyva\Admin\Model\GridSourcePrefetchEventDispatcher;
 use function array_contains as contains;
 use function array_filter as filter;
+use function array_map as map;
 use function array_merge as merge;
+use function array_reduce as reduce;
 use function array_unique as unique;
 use function array_values as values;
 
+use Hyva\Admin\Api\HyvaGridSourceProcessorInterface;
 use Hyva\Admin\Model\GridSourceType\CollectionSourceType\GridSourceCollectionFactory;
 use Hyva\Admin\Model\GridTypeReflection;
 use Hyva\Admin\Model\RawGridSourceContainer;
@@ -78,9 +80,9 @@ class CollectionGridSourceType implements GridSourceTypeInterface
     private $memoizedSelectInspectionFields;
 
     /**
-     * @var GridSourcePrefetchEventDispatcher
+     * @var HyvaGridSourceProcessorInterface
      */
-    private $gridSourcePrefetchEventDispatcher;
+    private $processors;
 
     public function __construct(
         string $gridName,
@@ -92,18 +94,18 @@ class CollectionGridSourceType implements GridSourceTypeInterface
         GridSourceCollectionFactory $gridSourceCollectionFactory,
         CollectionProcessorInterface $defaultCollectionProcessor,
         CollectionProcessorInterface $eavCollectionProcessor,
-        GridSourcePrefetchEventDispatcher $gridSourcePrefetchEventDispatcher
+        array $processors = []
     ) {
-        $this->gridName                          = $gridName;
-        $this->sourceConfiguration               = $sourceConfiguration;
-        $this->typeReflection                    = $typeReflection;
-        $this->dbSelectColumnExtractor           = $dbSelectColumnExtractor;
-        $this->gridSourceDataAccessor            = $gridSourceDataAccessor;
-        $this->columnDefinitionFactory           = $columnDefinitionFactory;
-        $this->gridSourceCollectionFactory       = $gridSourceCollectionFactory;
-        $this->defaultCollectionProcessor        = $defaultCollectionProcessor;
-        $this->eavCollectionProcessor            = $eavCollectionProcessor;
-        $this->gridSourcePrefetchEventDispatcher = $gridSourcePrefetchEventDispatcher;
+        $this->gridName                    = $gridName;
+        $this->sourceConfiguration         = $sourceConfiguration;
+        $this->processors                  = $processors;
+        $this->typeReflection              = $typeReflection;
+        $this->dbSelectColumnExtractor     = $dbSelectColumnExtractor;
+        $this->gridSourceDataAccessor      = $gridSourceDataAccessor;
+        $this->columnDefinitionFactory     = $columnDefinitionFactory;
+        $this->gridSourceCollectionFactory = $gridSourceCollectionFactory;
+        $this->defaultCollectionProcessor  = $defaultCollectionProcessor;
+        $this->eavCollectionProcessor      = $eavCollectionProcessor;
     }
 
     public function getRecordType(): string
@@ -165,20 +167,28 @@ class CollectionGridSourceType implements GridSourceTypeInterface
             $collection->addFieldToSelect('*');
         }
 
+        map(function (HyvaGridSourceProcessorInterface $processor) use ($collection, $searchCriteria): void {
+            $processor->beforeLoad($collection, $searchCriteria, $this->gridName);
+        }, $this->processors);
+
         if (is_subclass_of($collection, AbstractEavCollection::class)) {
             $this->eavCollectionProcessor->process($searchCriteria, $collection);
         } else {
             $this->defaultCollectionProcessor->process($searchCriteria, $collection);
         }
 
-        $this->gridSourcePrefetchEventDispatcher->dispatchSourceTypePrefetchEvent(
-            'hyva_grid_collection_load_before_',
-            $this->gridName,
-            $collection,
-            $searchCriteria
+        $afterProcessdCollection = reduce(
+            $this->processors,
+            function (
+                AbstractDb $collection,
+                HyvaGridSourceProcessorInterface $processor
+            ) use ($searchCriteria): AbstractDb {
+                return $processor->afterLoad($collection, $searchCriteria, $this->gridName) ?? $collection;
+            },
+            $collection
         );
 
-        return RawGridSourceContainer::forData($collection);
+        return RawGridSourceContainer::forData($afterProcessdCollection);
     }
 
     public function extractRecords(RawGridSourceContainer $rawGridData): array

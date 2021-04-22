@@ -9,5 +9,12 @@ interface RepositoryGetListInterface
 {
     public function __invoke(SearchCriteriaInterface $searchCriteria): SearchResultsInterface;
 
-    public function getInstance();
+    /**
+     * Return the instance on which the list method will be called.
+     *
+     * This is used to pass the instance to processors
+     *
+     * @return object
+     */
+    public function peek();
 }

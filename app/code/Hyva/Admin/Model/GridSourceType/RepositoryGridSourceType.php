@@ -2,8 +2,8 @@
 
 namespace Hyva\Admin\Model\GridSourceType;
 
+use Hyva\Admin\Api\HyvaGridSourceProcessorInterface;
 use Hyva\Admin\Model\DataType\ProductGalleryDataType;
-use Hyva\Admin\Model\GridSourcePrefetchEventDispatcher;
 use Hyva\Admin\Model\GridSourceType\RepositorySourceType\RepositorySourceFactory;
 use Hyva\Admin\Model\RawGridSourceContainer;
 use Hyva\Admin\Model\GridTypeReflection;
@@ -13,8 +13,9 @@ use Magento\Catalog\Api\Data\ProductInterface;
 use Magento\Framework\Api\SearchCriteriaInterface;
 use Magento\Framework\Api\SearchResults;
 
-use Magento\Framework\Event\ManagerInterface;
 use function array_filter as filter;
+use function array_map as map;
+use function array_reduce as reduce;
 
 class RepositoryGridSourceType implements GridSourceTypeInterface
 {
@@ -59,9 +60,9 @@ class RepositoryGridSourceType implements GridSourceTypeInterface
     private $memoizedRecordType;
 
     /**
-     * @var GridSourcePrefetchEventDispatcher
+     * @var HyvaGridSourceProcessorInterface[]
      */
-    private $gridSourcePrefetchEventDispatcher;
+    private $processors;
 
     public function __construct(
         string $gridName,
@@ -70,15 +71,15 @@ class RepositoryGridSourceType implements GridSourceTypeInterface
         RepositorySourceFactory $repositorySourceFactory,
         ColumnDefinitionInterfaceFactory $columnDefinitionFactory,
         GridTypeReflection $typeReflection,
-        GridSourcePrefetchEventDispatcher $gridSourcePrefetchEventDispatcher
+        array $processors = []
     ) {
-        $this->gridName                          = $gridName;
-        $this->sourceConfiguration               = $sourceConfiguration;
-        $this->gridSourceDataAccessor            = $gridSourceDataAccessor;
-        $this->repositorySourceFactory           = $repositorySourceFactory;
-        $this->columnDefinitionFactory           = $columnDefinitionFactory;
-        $this->typeReflection                    = $typeReflection;
-        $this->gridSourcePrefetchEventDispatcher = $gridSourcePrefetchEventDispatcher;
+        $this->gridName                = $gridName;
+        $this->sourceConfiguration     = $sourceConfiguration;
+        $this->processors              = $processors;
+        $this->gridSourceDataAccessor  = $gridSourceDataAccessor;
+        $this->repositorySourceFactory = $repositorySourceFactory;
+        $this->columnDefinitionFactory = $columnDefinitionFactory;
+        $this->typeReflection          = $typeReflection;
     }
 
     private function getSourceRepoConfig(): string
@@ -133,13 +134,19 @@ class RepositoryGridSourceType implements GridSourceTypeInterface
     public function fetchData(SearchCriteriaInterface $searchCriteria): RawGridSourceContainer
     {
         $repositoryGetList = $this->repositorySourceFactory->create($this->getSourceRepoConfig());
-        $this->gridSourcePrefetchEventDispatcher->dispatchSourceTypePrefetchEvent(
-            'hyva_grid_repository_getlist_before_',
-            $this->gridName,
-            $repositoryGetList->getInstance(),
-            $searchCriteria
+
+        map(function (HyvaGridSourceProcessorInterface $processor) use ($repositoryGetList, $searchCriteria): void {
+            $processor->beforeLoad($repositoryGetList->peek(), $searchCriteria, $this->gridName);
+        }, $this->processors);
+
+        $result = reduce(
+            $this->processors,
+            function ($result, HyvaGridSourceProcessorInterface $processor) use ($searchCriteria) {
+                $processed = $processor->afterLoad($result, $searchCriteria, $this->gridName);
+                return $processed ?? $result;
+            },
+            $repositoryGetList($searchCriteria)
         );
-        $result = $repositoryGetList($searchCriteria);
 
         return RawGridSourceContainer::forData($result);
     }

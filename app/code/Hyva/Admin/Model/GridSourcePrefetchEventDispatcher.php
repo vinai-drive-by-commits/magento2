@@ -56,26 +56,6 @@ class GridSourcePrefetchEventDispatcher
         return $container->getSearchCriteria();
     }
 
-    /**
-     * @param string $eventNamePrefix
-     * @param string $gridName
-     * @param mixed $source
-     * @param SearchCriteriaInterface $searchCriteria
-     */
-
-    public function dispatchSourceTypePrefetchEvent(
-        string $eventNamePrefix,
-        string $gridName,
-        $source,
-        SearchCriteriaInterface $searchCriteria
-    ) {
-        $this->eventManager->dispatch($eventNamePrefix . $this->getGridNameEventSuffix($gridName), [
-            'source'          => $source,
-            'search_criteria' => $searchCriteria,
-            'grid_name'       => $gridName,
-        ]);
-    }
-
     private function getGridNameEventSuffix(string $gridName): string
     {
         return strtolower(preg_replace('/[^[:alpha:]]+/', '_', $gridName));

@@ -81,7 +81,7 @@ class RepositorySourceFactory
                 return $this->repo->{$this->method}($searchCriteria);
             }
 
-            public function getInstance()
+            public function peek()
             {
                 return $this->repo;
             }

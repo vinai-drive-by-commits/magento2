@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
-    <event name="hyva_grid_collection_load_before_hyva_admin_product_grid">
-        <observer name="hyva_adminproductgrid" instance="\Hyva\AdminProductGrid\Observer\AddProductCollectionFields"/>
-    </event>
-</config>
