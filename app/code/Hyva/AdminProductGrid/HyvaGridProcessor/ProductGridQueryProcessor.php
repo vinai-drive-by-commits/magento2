@@ -2,7 +2,7 @@
 
 namespace Hyva\AdminProductGrid\HyvaGridProcessor;
 
-use Hyva\Admin\Api\HyvaGridSourceProcessorInterface;
+use Hyva\Admin\Model\GridSource\AbstractGridSourceProcessor;
 use Magento\Catalog\Api\Data\ProductAttributeInterface as CatalogProduct;
 use Magento\Eav\Model\Config as EavConfig;
 use Magento\Framework\Api\Filter;
@@ -10,14 +10,13 @@ use Magento\Framework\Api\Search\FilterGroup;
 use Magento\Framework\Api\SearchCriteriaInterface;
 use Magento\Framework\DB\Select;
 
-use function array_column as pick;
 use function array_filter as filter;
 use function array_map as map;
 use function array_merge as merge;
 use function array_reduce as reduce;
 use function array_values as values;
 
-class ProductGridQueryProcessor implements HyvaGridSourceProcessorInterface
+class ProductGridQueryProcessor extends AbstractGridSourceProcessor
 {
     private const GRID_ATTRIBUTES = ['name', 'thumbnail', 'visibility', 'status', 'price'];
 
@@ -29,16 +28,6 @@ class ProductGridQueryProcessor implements HyvaGridSourceProcessorInterface
     public function __construct(EavConfig $eavConfig)
     {
         $this->eavConfig = $eavConfig;
-    }
-
-    /**
-     * @param Select $select
-     * @param SearchCriteriaInterface $searchCriteria
-     * @param string $gridName
-     */
-    public function prepareLoad($select, SearchCriteriaInterface $searchCriteria, string $gridName): void
-    {
-
     }
 
     private function addAttributeIdBindings(Select $select): void
@@ -58,19 +47,12 @@ class ProductGridQueryProcessor implements HyvaGridSourceProcessorInterface
      */
     public function beforeLoad($select, SearchCriteriaInterface $searchCriteria, string $gridName): void
     {
-
         $this->addAttributeIdBindings($select);
 
-        if ($websiteFilter = $this->extractWebsiteFilter($searchCriteria)) {
-            $this->applyWebsiteFilterToWebsiteJoinCondition($select, $websiteFilter);
-            $where = filter($select->getPart(Select::WHERE), function ($condition): bool {
-                return strpos((string) $condition, 'website_ids') === false;
-            });
-            $select->setPart(Select::WHERE, $where);
-        }
+        $this->applyWebsiteFilter($searchCriteria, $select);
     }
 
-    private function extractWebsiteFilter(SearchCriteriaInterface $searchCriteria): ?Filter
+    private function getWebsiteFilter(SearchCriteriaInterface $searchCriteria): ?Filter
     {
         // return first filter for website or null if there is no matching filter
         $allFilters = merge(...values(map(function (FilterGroup $filterGroup): array {
@@ -84,11 +66,19 @@ class ProductGridQueryProcessor implements HyvaGridSourceProcessorInterface
         return $websiteFilters[0] ?? null;
     }
 
-    private function applyWebsiteFilterToWebsiteJoinCondition(Select $select, ?Filter $websiteFilter): void
+    private function applyWebsiteFilter(SearchCriteriaInterface $searchCriteria, Select $select): void
+    {
+        if ($websiteFilter = $this->getWebsiteFilter($searchCriteria)) {
+            $this->applyWebsiteFilterToWebsiteJoinCondition($select, $websiteFilter->getValue());
+            $this->removeSelectWebsiteFromWhereCondition($select);
+        }
+    }
+
+    private function applyWebsiteFilterToWebsiteJoinCondition(Select $select, $websiteFilterValue): void
     {
         $from              = $select->getPart(Select::FROM);
         $websiteJoin       = $from['t_website'] ?? [];
-        $condition         = 't_website.website_id=' . ((int) $websiteFilter->getValue());
+        $condition         = 't_website.website_id=' . ((int) $websiteFilterValue);
         $replacement       = [
             'joinType'      => Select::INNER_JOIN,
             'joinCondition' => $websiteJoin['joinCondition'] . ' AND ' . $condition,
@@ -97,26 +87,11 @@ class ProductGridQueryProcessor implements HyvaGridSourceProcessorInterface
         $select->setPart(Select::FROM, $from);
     }
 
-    private function removeFilter(SearchCriteriaInterface $searchCriteria, Filter $websiteFilter): void
+    private function removeSelectWebsiteFromWhereCondition(Select $select): void
     {
-        $groups = filter(map(function (FilterGroup $group) use ($websiteFilter): ?FilterGroup {
-            $filters = values(filter($group->getFilters(), function (Filter $filter) use ($websiteFilter): bool {
-                return $filter !== $websiteFilter;
-            }));
-
-            return $filters ? $group->setFilters($filters) : null;
-        }, $searchCriteria->getFilterGroups()));
-        $searchCriteria->setFilterGroups($groups);
-    }
-
-    /**
-     * @param mixed[] $rawResult Result format: ['data' => [...rows...], 'count' => n]
-     * @param SearchCriteriaInterface $searchCriteria
-     * @param string $gridName
-     * @return mixed|void
-     */
-    public function afterLoad($rawResult, SearchCriteriaInterface $searchCriteria, $gridName)
-    {
-        // null op
+        $where = filter($select->getPart(Select::WHERE), function ($condition): bool {
+            return strpos((string) $condition, 'website_ids') === false;
+        });
+        $select->setPart(Select::WHERE, $where);
     }
 }
