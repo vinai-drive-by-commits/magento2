@@ -7,15 +7,28 @@ use Magento\Framework\Api\SearchCriteriaInterface;
 interface HyvaGridSourceProcessorInterface
 {
     /**
-     * Provide the ability to mutate the grid $source before the grid data is loaded.
+     * Provide the ability to mutate the grid $source before the grid data source is prepared for loading.
      *
+     * This means, the search criteria will not have been applied yet (if applicable for a given source type).
      * The type of $source is grid configuration dependent.
      *
      * @param mixed $source
      * @param SearchCriteriaInterface $searchCriteria
      * @param string $gridName
      */
-    public function beforeLoad( $source, SearchCriteriaInterface $searchCriteria, string $gridName): void;
+    public function prepareLoad($source, SearchCriteriaInterface $searchCriteria, string $gridName): void;
+
+    /**
+     * Provide the ability to mutate the grid $source before the grid data is loaded.
+     *
+     * The search criteria will already have been applied (if applicable for a given source type).
+     * The type of $source is grid configuration dependent.
+     *
+     * @param mixed $source
+     * @param SearchCriteriaInterface $searchCriteria
+     * @param string $gridName
+     */
+    public function beforeLoad($source, SearchCriteriaInterface $searchCriteria, string $gridName): void;
 
     /**
      * Provide the ability to change the raw grid result after it is loaded.

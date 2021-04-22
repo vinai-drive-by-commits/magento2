@@ -224,7 +224,7 @@ class QueryGridSourceType implements GridSourceTypeInterface
         $filterGroupsSql = map(function (FilterGroup $group) use ($select): string {
             $filtersSql = map(function (Filter $filter) use ($select): string {
                 $condition = [$filter->getConditionType() ?? 'eq' => $filter->getValue()];
-                $fieldName = $this->extractRealColumnName($select, $filter->getField());
+                $fieldName = $this->extractRealColumnNameForAlias($select, $filter->getField());
                 return $select->getConnection()->prepareSqlCondition($fieldName, $condition);
             }, $group->getFilters());
             return implode(' OR ', $filtersSql);
@@ -236,8 +236,9 @@ class QueryGridSourceType implements GridSourceTypeInterface
     private function applySortOrder(Select $select, SearchCriteriaInterface $searchCriteria): void
     {
         $orderSpecs = filter(map(function (SortOrder $sortOrder) use ($select): string {
-            return $sortOrder->getField()
-                ? sprintf('%s %s', $sortOrder->getField(), $sortOrder->getDirection())
+            $fieldName = $this->extractRealColumnNameForAlias($select, $sortOrder->getField());
+            return $fieldName
+                ? sprintf('%s %s', $fieldName, $sortOrder->getDirection())
                 : '';
         }, $searchCriteria->getSortOrders() ?? []));
 
@@ -274,7 +275,7 @@ class QueryGridSourceType implements GridSourceTypeInterface
         $select = reduce(
             $this->processors,
             function (Select $select, HyvaGridSourceProcessorInterface $processor) use ($searchCriteria): Select {
-                $processor->beforeLoad($select, $searchCriteria, $this->gridName);
+                $processor->prepareLoad($select, $searchCriteria, $this->gridName);
                 return $select;
             },
             $this->getSelect()
@@ -284,16 +285,28 @@ class QueryGridSourceType implements GridSourceTypeInterface
         $this->applySortOrder($select, $searchCriteria);
         $this->applyPagination($select, $searchCriteria);
 
-        $select = $this->dispatchQueryBeforeEvent($select);
-        return $select;
+        return $this->dispatchQueryBeforeEvent(reduce(
+            $this->processors,
+            function (Select $select, HyvaGridSourceProcessorInterface $processor) use ($searchCriteria): Select {
+                $processor->beforeLoad($select, $searchCriteria, $this->gridName);
+                return $select;
+            },
+            $select
+        ));
     }
 
-    private function extractRealColumnName(Select $select, string $field)
+    private function extractRealColumnNameForAlias(Select $select, ?string $maybeAlias): ?string
     {
-        $aliases   = pick($select->getPart(Select::COLUMNS), self::COLUMN_ALIASES);
-        $idx       = search($field, $aliases, true);
-        [$schema, $name] = $select->getPart(Select::COLUMNS)[$idx];
+        if (!$maybeAlias) {
+            return null;
+        }
+        $aliases = pick($select->getPart(Select::COLUMNS), self::COLUMN_ALIASES);
+        $idx     = search($maybeAlias, $aliases, true);
+        [$schema, $column] = $select->getPart(Select::COLUMNS)[$idx];
+        $expression = is_string($column) ? // might be Zend_Db_Expression
+            $schema . '.' . $column
+            : (string) $column;
 
-        return $idx !== false ? $schema . '.' . $name : $field;
+        return $idx !== false  && is_string($column) ? $expression : $maybeAlias;
     }
 }

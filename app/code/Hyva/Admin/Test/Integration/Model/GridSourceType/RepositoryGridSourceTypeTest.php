@@ -191,7 +191,7 @@ class RepositoryGridSourceTypeTest extends TestCase
     {
         $processor = new class implements HyvaGridSourceProcessorInterface {
 
-            public function beforeLoad(string $gridName, SearchCriteriaInterface $searchCriteria, $source): void
+            public function prepareLoad(string $gridName, SearchCriteriaInterface $searchCriteria, $source): void
             {
                 $searchCriteria->setPageSize(1);
             }

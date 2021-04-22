@@ -143,7 +143,7 @@ class ArrayProviderGridSourceType implements GridSourceTypeInterface
             $provider = $this->arrayProviderFactory->create($this->arrayProviderClass);
 
             map(function (HyvaGridSourceProcessorInterface $processor) use ($provider, $searchCriteria): void {
-                $processor->beforeLoad($provider, $searchCriteria, $this->gridName);
+                $processor->prepareLoad($provider, $searchCriteria, $this->gridName);
             }, $this->processors);
 
             $filterGroups = $searchCriteria->getFilterGroups() ?? [];

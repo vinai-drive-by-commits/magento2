@@ -262,7 +262,7 @@ class CollectionGridSourceTypeTest extends TestCase
                 $this->spy = $spy;
             }
 
-            public function beforeLoad(string $gridName, SearchCriteriaInterface $searchCriteria, $source): void
+            public function prepareLoad(string $gridName, SearchCriteriaInterface $searchCriteria, $source): void
             {
                 $searchCriteria->setPageSize(1);
                 $this->spy->calledMethods[] = 'A';

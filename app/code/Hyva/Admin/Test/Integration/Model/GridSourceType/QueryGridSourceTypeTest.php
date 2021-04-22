@@ -390,7 +390,7 @@ class QueryGridSourceTypeTest extends TestCase
              * @param SearchCriteriaInterface $searchCriteria
              * @param \Magento\Framework\DB\Select $source
              */
-            public function beforeLoad(string $gridName, SearchCriteriaInterface $searchCriteria, $source): void
+            public function prepareLoad(string $gridName, SearchCriteriaInterface $searchCriteria, $source): void
             {
                 $searchCriteria->setPageSize(1);
                 $source->columns('a');
