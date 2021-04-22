@@ -165,7 +165,7 @@ class CollectionGridSourceType implements GridSourceTypeInterface
         $collection = $this->getCollectionInstance();
 
         map(function (HyvaGridSourceProcessorInterface $processor) use ($collection, $searchCriteria): void {
-            $processor->prepareLoad($collection, $searchCriteria, $this->gridName);
+            $processor->beforeLoad($collection, $searchCriteria, $this->gridName);
         }, $this->processors);
 
         if (method_exists($collection, 'addFieldToSelect')) {

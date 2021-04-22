@@ -4,25 +4,29 @@ namespace Hyva\Admin\Api;
 
 use Magento\Framework\Api\SearchCriteriaInterface;
 
+/**
+ * Implement this interface in your module and configure it on a grid:
+ *
+ * <grid>
+ *   <source>
+ *     ... other source config ...
+ *     <processors>
+ *       <processor class="\YOur\Module\HyvaGridProcessor\MyGridQueryProcessor"/>
+ *     </processors>
+ *   </source>
+ * </grid>
+ */
 interface HyvaGridSourceProcessorInterface
 {
     /**
-     * Provide the ability to mutate the grid $source before the grid data source is prepared for loading.
-     *
-     * This means, the search criteria will not have been applied yet (if applicable for a given source type).
-     * The type of $source is grid configuration dependent.
-     *
-     * @param mixed $source
-     * @param SearchCriteriaInterface $searchCriteria
-     * @param string $gridName
-     */
-    public function prepareLoad($source, SearchCriteriaInterface $searchCriteria, string $gridName): void;
-
-    /**
-     * Provide the ability to mutate the grid $source before the grid data is loaded.
+     * Provides the ability to mutate the grid $source before the grid data is loaded.
      *
      * The search criteria will already have been applied (if applicable for a given source type).
-     * The type of $source is grid configuration dependent.
+     * Do not mutate $searchCriteria since that will cause multiple loads (it's signature changes,
+     * see \Hyva\Admin\Model\GridSource\SearchCriteriaIdentity).
+     *
+     * The type of $source is grid configuration dependent (it might be a Select instance, or a
+     * collection, or a repository, ...).
      *
      * @param mixed $source
      * @param SearchCriteriaInterface $searchCriteria
@@ -31,10 +35,13 @@ interface HyvaGridSourceProcessorInterface
     public function beforeLoad($source, SearchCriteriaInterface $searchCriteria, string $gridName): void;
 
     /**
-     * Provide the ability to change the raw grid result after it is loaded.
+     * Provides the ability to change the raw grid result after it is loaded.
      *
-     * The method must return the new result or null. The $resutl type depends on the grid configuration.
-     * (If null is returned, the result value from before afterLoad is used).
+     * The method must return the new result or null. The $result type depends on the grid configuration.
+     * If null is returned, the result value from before afterLoad is used.
+     *
+     * Do not mutate $searchCriteria since that will cause multiple loads (because )it's signature change,
+     * see note on beforeLoad above).
      *
      * @param mixed $rawResult
      * @param SearchCriteriaInterface $searchCriteria

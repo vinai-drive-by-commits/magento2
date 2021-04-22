@@ -272,14 +272,7 @@ class QueryGridSourceType implements GridSourceTypeInterface
 
     private function prepareSelect(SearchCriteriaInterface $searchCriteria): Select
     {
-        $select = reduce(
-            $this->processors,
-            function (Select $select, HyvaGridSourceProcessorInterface $processor) use ($searchCriteria): Select {
-                $processor->prepareLoad($select, $searchCriteria, $this->gridName);
-                return $select;
-            },
-            $this->getSelect()
-        );
+        $select = $this->getSelect();
 
         $this->applyFilters($select, $searchCriteria);
         $this->applySortOrder($select, $searchCriteria);
